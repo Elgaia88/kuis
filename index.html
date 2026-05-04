@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Dinamika Kependudukan</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --correct: #27ae60;
+            --wrong: #e74c3c;
+            --bg: #f4f7f6;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        #quiz-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        h1 { color: var(--primary); margin-bottom: 1rem; }
+        
+        .setup-box input {
+            padding: 10px;
+            width: 80%;
+            margin-bottom: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.3s;
+        }
+
+        .btn:hover { background: #2980b9; }
+
+        #timer {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--wrong);
+            margin-bottom: 10px;
+        }
+
+        .question-text {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+        }
+
+        .options-container {
+            display: grid;
+            gap: 10px;
+        }
+
+        .option-btn {
+            background: #ecf0f1; /* Warna latar jawaban */
+            color: #2c3e50; /* Warna font jawaban (berbeda dari latar) */
+            border: 2px solid #bdc3c7;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1rem;
+            transition: 0.2s;
+        }
+
+        .option-btn:hover:not([disabled]) {
+            background: #dfe6e9;
+        }
+
+        .correct { background-color: var(--correct) !important; color: white !important; border-color: #219150; }
+        .wrong { background-color: var(--wrong) !important; color: white !important; border-color: #c0392b; }
+
+        #review-container {
+            text-align: left;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+            padding: 10px;
+            border-top: 2px solid #eee;
+        }
+
+        .review-item { margin-bottom: 10px; padding: 5px; border-bottom: 1px solid #eee; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="quiz-container">
+    <div id="setup-screen" class="setup-box">
+        <h1>Kuis Kependudukan</h1>
+        <input type="text" id="player-name" placeholder="Masukkan Nama Anda..." required>
+        <p>Durasi per soal: <strong>15 Detik</strong></p>
+        <button class="btn" onclick="startQuiz()">Mulai Kuis</button>
+    </div>
+
+    <div id="quiz-screen" class="hidden">
+        <div id="timer">15</div>
+        <div id="progress">Soal 1 / 40</div>
+        <p class="question-text" id="question"></p>
+        <div class="options-container" id="options"></div>
+    </div>
+
+    <div id="result-screen" class="hidden">
+        <h1>Hasil Kuis</h1>
+        <p id="final-stats"></p>
+        <h2 id="final-score" style="font-size: 3rem; color: var(--accent);"></h2>
+        <div id="review-container"></div>
+        <button class="btn" onclick="location.reload()" style="margin-top:20px">Ulangi Kuis</button>
+    </div>
+</div>
+
+<script>
+    const rawData = [
+        { q: "Pertumbuhan penduduk yang pesat dan tidak terkendali disebut...", a: "Ledakan penduduk" },
+        { q: "Perhitungan penduduk secara serentak dan menyeluruh di suatu negara disebut...", a: "Sensus penduduk" },
+        { q: "Pencatatan peristiwa kependudukan seperti kelahiran dan lain-lain disebut...", a: "Registrasi penduduk" },
+        { q: "Perhitungan penduduk dengan cara mengambil sampel disebut...", a: "Survey penduduk" },
+        { q: "Pengelompokan penduduk atas dasar kriteria tertentu disebut...", a: "Komposisi penduduk" },
+        { q: "Komposisi penduduk biologis mendasarkan pada umur dan...", a: "Jenis kelamin" },
+        { q: "Komposisi penduduk geografis mendasarkan pada...", a: "Tempat tinggal" },
+        { q: "Komposisi penduduk sosial mendasarkan pada...", a: "Ciri-ciri sosial" },
+        { q: "Piramida penduduk muda disebut juga...", a: "Ekspansif" },
+        { q: "Contoh negara dengan piramida penduduk muda adalah...", a: "Indonesia" },
+        { q: "Piramida penduduk dewasa disebut juga...", a: "Stasioner" },
+        { q: "Contoh negara dengan piramida penduduk dewasa adalah...", a: "Inggris" },
+        { q: "Piramida penduduk tua disebut juga...", a: "Konstruktif" },
+        { q: "Contoh negara dengan piramida penduduk tua adalah...", a: "Belgia" },
+        { q: "Memperkirakan jumlah penduduk di masa yang akan datang disebut...", a: "Proyeksi penduduk" },
+        { q: "Keluarnya bayi dari rahim ibu disebut...", a: "Kelahiran" },
+        { q: "Faktor yang mempertinggi angka kelahiran disebut...", a: "Pronatalitas" },
+        { q: "Faktor yang menghambat angka kelahiran disebut...", a: "Antinatalitas" },
+        { q: "Apa kepanjangan dari CBR dalam kelahiran?", a: "Crude Birth Rate" },
+        { q: "Angka kelahiran menurut kelompok umur disebut...", a: "ASBR" },
+        { q: "Hilangnya tanda-tanda kehidupan seseorang secara permanen disebut...", a: "Kematian" },
+        { q: "Faktor yang mempertinggi angka kematian disebut...", a: "Promortalitas" },
+        { q: "Faktor yang menghambat angka kematian disebut...", a: "Antimortalitas" },
+        { q: "Angka kematian kasar sering disebut...", a: "CDR" },
+        { q: "Angka kematian menurut kelompok umur disebut...", a: "ASDR" },
+        { q: "Masuknya penduduk ke suatu negara disebut...", a: "Imigrasi" },
+        { q: "Keluarnya penduduk dari suatu negara disebut...", a: "Emigrasi" },
+        { q: "Kembalinya penduduk ke negara asal disebut...", a: "Remigrasi" },
+        { q: "Transmigrasi yang diselenggarakan dan dibiayai pemerintah disebut...", a: "Transmigrasi umum" },
+        { q: "Transmigrasi yang dilakukan atas biaya sendiri disebut...", a: "Transmigrasi spontan" },
+        { q: "Transmigrasi yang dilakukan oleh seluruh masyarakat satu desa disebut...", a: "Bedol desa" },
+        { q: "Perpindahan penduduk dari kota ke desa disebut...", a: "Ruralisasi" },
+        { q: "Transmigrasi masih dalam satu wilayah / propinsi disebut...", a: "Transmigrasi lokal" },
+        { q: "Perpindahan penduduk dari desa ke kota disebut...", a: "Urbanisasi" },
+        { q: "Simbol untuk angka migrasi masuk adalah...", a: "Mi" },
+        { q: "Simbol untuk angka migrasi keluar adalah...", a: "Mo" },
+        { q: "Simbol untuk angka migrasi netto adalah...", a: "Mn" },
+        { q: "Jumlah rata-rata penduduk per km² pada suatu wilayah disebut...", a: "Kepadatan penduduk" },
+        { q: "Rasio ketergantungan kelompok usia non-produktif ke usia produktif disebut...", a: "DR" },
+        { q: "Pendapatan perkapita penduduk suatu negara disebut...", a: "Income perkapita" }
+    ];
+
+    let questions = [];
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let timer;
+    let timeLeft = 15;
+    let playerName = "";
+    let userAnswers = [];
+
+    function shuffle(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    function startQuiz() {
+        playerName = document.getElementById('player-name').value;
+        if (!playerName) { alert("Masukkan nama dulu!"); return; }
+        
+        document.getElementById('setup-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.remove('hidden');
+        
+        questions = shuffle([...rawData]);
+        showQuestion();
+    }
+
+    function showQuestion() {
+        clearInterval(timer);
+        timeLeft = 15;
+        document.getElementById('timer').innerText = timeLeft;
+        
+        let q = questions[currentQuestionIndex];
+        document.getElementById('progress').innerText = `Soal ${currentQuestionIndex + 1} / ${questions.length}`;
+        document.getElementById('question').innerText = q.q;
+        
+        // Generate options (1 correct, 3 wrong)
+        let options = [q.a];
+        let otherAnswers = rawData.filter(item => item.a !== q.a).map(item => item.a);
+        shuffle(otherAnswers);
+        options.push(...otherAnswers.slice(0, 3));
+        shuffle(options);
+
+        const optionsContainer = document.getElementById('options');
+        optionsContainer.innerHTML = '';
+        
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt;
+            btn.onclick = () => checkAnswer(opt, btn);
+            optionsContainer.appendChild(btn);
+        });
+
+        timer = setInterval(() => {
+            timeLeft--;
+            document.getElementById('timer').innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                autoShowAnswer();
+            }
+        }, 1000);
+    }
+
+    function checkAnswer(selected, btn) {
+        clearInterval(timer);
+        const correctAnswer = questions[currentQuestionIndex].a;
+        const allBtns = document.querySelectorAll('.option-btn');
+        
+        allBtns.forEach(b => b.disabled = true);
+
+        userAnswers.push({
+            question: questions[currentQuestionIndex].q,
+            correct: correctAnswer,
+            user: selected
+        });
+
+        if (selected === correctAnswer) {
+            btn.classList.add('correct');
+            score++;
+        } else {
+            btn.classList.add('wrong');
+            allBtns.forEach(b => {
+                if (b.innerText === correctAnswer) b.classList.add('correct');
+            });
+        }
+
+        setTimeout(nextQuestion, 1500);
+    }
+
+    function autoShowAnswer() {
+        const correctAnswer = questions[currentQuestionIndex].a;
+        const allBtns = document.querySelectorAll('.option-btn');
+        
+        userAnswers.push({
+            question: questions[currentQuestionIndex].q,
+            correct: correctAnswer,
+            user: "Waktu Habis"
+        });
+
+        allBtns.forEach(b => {
+            b.disabled = true;
+            if (b.innerText === correctAnswer) b.classList.add('correct');
+        });
+
+        setTimeout(nextQuestion, 2000);
+    }
+
+    function nextQuestion() {
+        currentQuestionIndex++;
+        if (currentQuestionIndex < questions.length) {
+            showQuestion();
+        } else {
+            showResult();
+        }
+    }
+
+    function showResult() {
+        document.getElementById('quiz-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        
+        let finalScore = (score / questions.length) * 100;
+        document.getElementById('final-stats').innerText = `Nama: ${playerName} | Benar: ${score} dari ${questions.length}`;
+        document.getElementById('final-score').innerText = `Skor: ${finalScore.toFixed(0)}`;
+
+        let reviewHTML = "<h3>Review Jawaban:</h3>";
+        userAnswers.forEach((item, index) => {
+            reviewHTML += `
+                <div class="review-item">
+                    <strong>${index+1}. ${item.question}</strong><br>
+                    <span style="color: ${item.user === item.correct ? 'green' : 'red'}">Jawaban Anda: ${item.user}</span><br>
+                    <span style="color: green">Kunci: ${item.correct}</span>
+                </div>`;
+        });
+        document.getElementById('review-container').innerHTML = reviewHTML;
+    }
+</script>
+
+</body>
+</html>
